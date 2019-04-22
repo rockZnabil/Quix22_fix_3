@@ -48,13 +48,21 @@ public class Tutorial2Activity extends Activity implements
 
 	Zoomcameraview zoomcameraview;
 
+	Thread threadDelay;
+
 	private int RGB_data_array[]=new int[3];
+	private int RGB_data_array_2[]=new int[3];
+	private int RGB_avg_per_time[]=new int[10];
+
+
 	public boolean should_motor_on =false;
 	public boolean FLAG_GREEN=false;
 	public boolean FLAG_RED=false;
 	public boolean FLAG_YELLOW=false;
 
-
+	public int FLAG_INI_VALUE=0;
+	public boolean ini_F = false;
+	public int ini_R=0, ini_G=0, ini_B=0, ini_GC=0;
 
 	private static final String TAG = "OCVSample::Activity";
 
@@ -70,10 +78,15 @@ public class Tutorial2Activity extends Activity implements
 	private  static  final  int COLOR_YELLOW=2;
 
 	public int seekBarProgress;
-	public int start_x=1360;
+	public int start_x=1340;
 	public int start_y=520;
-	public int x_width=15;
-	public int y_height=15;
+	public int x_width=25;
+	public int y_height=30;
+
+	public int start_x_2=1360;
+	public int start_y_2=520;
+	public int x_width_2=15;
+	public int y_height_2=15;
 
 	private int mViewMode;
 	private Mat mRgba,mask;
@@ -135,18 +148,18 @@ public class Tutorial2Activity extends Activity implements
 		@Override
 		public void onManagerConnected(int status) {
 			switch (status) {
-			case LoaderCallbackInterface.SUCCESS: {
-				Log.i(TAG, "OpenCV loaded successfully");
+				case LoaderCallbackInterface.SUCCESS: {
+					Log.i(TAG, "OpenCV loaded successfully");
 
-				// Load native library after(!) OpenCV initialization
-				System.loadLibrary("native-lib");
+					// Load native library after(!) OpenCV initialization
+					System.loadLibrary("native-lib");
 
-				mOpenCvCameraView.enableView();
-			}
+					mOpenCvCameraView.enableView();
+				}
 				break;
-			default: {
-				super.onManagerConnected(status);
-			}
+				default: {
+					super.onManagerConnected(status);
+				}
 				break;
 			}
 		}
@@ -181,6 +194,7 @@ public class Tutorial2Activity extends Activity implements
 		mOpenCvCameraView.setEnabled(true);
 		mOpenCvCameraView.setVisibility(CameraBridgeViewBase.VISIBLE);
 		mOpenCvCameraView.setZoomControl((SeekBar) findViewById(R.id.CameraZoomControls));
+//		zoomcameraview.setZoomControl(seekBar);
 
 
 
@@ -228,9 +242,11 @@ public class Tutorial2Activity extends Activity implements
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 				if(isChecked){
 					mOpenCvCameraView.setEffect(Camera.Parameters.FLASH_MODE_TORCH);
+//					mOpenCvCameraView.setAWB(true);
 
 				}else{
 					mOpenCvCameraView.setEffect(Camera.Parameters.FLASH_MODE_ON);
+//					mOpenCvCameraView.setAWB(false);
 				}
 			}
 		});
@@ -257,8 +273,8 @@ public class Tutorial2Activity extends Activity implements
 	@Override
 	public void onResume() {
 		super.onResume();
-//		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this,
-//				mLoaderCallback);
+//      OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this,
+//            mLoaderCallback);
 
 		if (!OpenCVLoader.initDebug()) {
 			Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
@@ -342,16 +358,11 @@ public class Tutorial2Activity extends Activity implements
 	public Mat onCameraFrame(final CvCameraViewFrame inputFrame) {
 
 
-//		count++;
-//		if(count<5){
-//			return null;
-//		}
-//		count =0;
-
-
-
-
-
+//      count++;
+//      if(count<5){
+//         return null;
+//      }
+//      count =0;
 		InitBtn.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -375,13 +386,30 @@ public class Tutorial2Activity extends Activity implements
 					}if(!sendMsg.equals(con)){
 						sendMessage(con);
 						sendMsg = con;
-						}
+					}
 
 				}
 
 				mText.setTextSize(20);
 			}
 		});
+
+//		OnClickListener delayListener = new OnClickListener() {
+//			@Override
+//			public void onClick(View view) {
+//				try {
+//					Thread.sleep(5000);
+//				} catch (InterruptedException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+//				mViewMode = VIEW_MODE_START;
+//
+//			}
+//		}
+//
+//		}
+
 		StartBtn.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -421,6 +449,8 @@ public class Tutorial2Activity extends Activity implements
 				FLAG_GREEN=false;
 				FLAG_RED=false;
 				FLAG_YELLOW=false;
+				FLAG_INI_VALUE=0;
+				ini_F = false;
 
 
 				// TODO Auto-generated method stub
@@ -460,89 +490,105 @@ public class Tutorial2Activity extends Activity implements
 
 
 		switch (viewMode) {
-		case VIEW_MODE_RGBA:
-			mRgba = inputFrame.rgba();
-			drawRect();
+			case VIEW_MODE_RGBA:
+				mRgba = inputFrame.rgba();
+				drawRect();
+
+				break;
+			case VIEW_MODE_START:
+				// input frame has gray scale format
+				mRgba = inputFrame.rgba();
+				Rect Roi_chamber = new Rect(start_x,start_y,x_width,y_height);
+
+				int avgR = 0, avgG = 0, avgB = 0;
+				int avgR2 = 0, avgG2 = 0, avgB2 = 0;
+				//+3 , -3 : because of Roi Thickness
+				for (int i = Roi_chamber.x+3; i < Roi_chamber.x + Roi_chamber.width-3; i++)
+					for (int j = Roi_chamber.y+3; j < Roi_chamber.y + Roi_chamber.height-3; j++) {
+						double[] rgbV = mRgba.get(j, i);
+						avgR += rgbV[0];
+						avgG += rgbV[1];
+						avgB += rgbV[2];
+					}
+
+//         for (int i = Roi_chamber_2.x+3; i < Roi_chamber_2.x + Roi_chamber_2.width-3; i++)
+//            for (int j = Roi_chamber_2.y+3; j < Roi_chamber_2.y + Roi_chamber_2.height-3; j++) {
+//               double[] rgbV = mRgba.get(j, i);
+//               avgR2 += rgbV[0];
+//               avgG2 += rgbV[1];
+//               avgB2 += rgbV[2];
+//            }
+				avgR = avgR / (Roi_chamber.width * Roi_chamber.height);
+				avgG = avgG / (Roi_chamber.width * Roi_chamber.height);
+				avgB = avgB / (Roi_chamber.width * Roi_chamber.height);
+
+				double hue_value=0.0;
+				RGB_data_array[0]=avgR;
+				RGB_data_array[1]=avgG;
+				RGB_data_array[2]=avgB;
 
 
-			break;
-		case VIEW_MODE_START:
-			// input frame has gray scale format
-			mRgba = inputFrame.rgba();
-			Rect Roi_chamber = new Rect(start_x,start_y,x_width,y_height);
-			int avgR = 0, avgG = 0, avgB = 0;
-			int avgR2 = 0, avgG2 = 0, avgB2 = 0;
-			//+3 , -3 : because of Roi Thickness
-			for (int i = Roi_chamber.x+3; i < Roi_chamber.x + Roi_chamber.width-3; i++)
-				for (int j = Roi_chamber.y+3; j < Roi_chamber.y + Roi_chamber.height-3; j++) {
-					double[] rgbV = mRgba.get(j, i);
-					avgR += rgbV[0];
-					avgG += rgbV[1];
-					avgB += rgbV[2];
-				}
-			avgR = avgR / (Roi_chamber.width * Roi_chamber.height);
-			avgG = avgG / (Roi_chamber.width * Roi_chamber.height);
-			avgB = avgB / (Roi_chamber.width * Roi_chamber.height);
-
-			double hue_value=0.0;
-			RGB_data_array[0]=avgR;
-			RGB_data_array[1]=avgG;
-			RGB_data_array[2]=avgB;
-
-			CalculateHue calculateHue= new CalculateHue();
+//
+//         RGB_data_array_2[0]=avgR2;
+//         RGB_data_array_2[1]=avgG2;
+//         RGB_data_array_2[2]=avgB2;
 
 
-			hue_value = calculateHue.getH(RGB_data_array);
-			double hue_value_2f=Double.parseDouble(String.format("%.2f",hue_value));
+				String Text_RGB=("R : "+RGB_data_array[0]+" G : "+RGB_data_array[1]+" B : "+RGB_data_array[2]);
+
+				String Text_RGB_2=("R : "+RGB_data_array[0]+" G : "+RGB_data_array[1]+" B : "+RGB_data_array[2]);
+
+				CalculateHue calculateHue = new CalculateHue();
+				hue_value = calculateHue.getH(RGB_data_array);
+				double hue_value_2f=Double.parseDouble(String.format("%.2f",hue_value));
+				Point point_hue  = new Point (start_x-150,start_y-50);
+
+				String Text_hue= ("H :  "+hue_value_2f);
 
 
-			String Text_hue= ("H :  "+hue_value_2f);
-			String Text_RGB=("R : "+RGB_data_array[0]+" G : "+RGB_data_array[1]+" B : "+RGB_data_array[2]);
+				Point point_rgb = new Point (start_x-150,start_y-90);
+//         Point point_rgb_2 = new Point (start_x-150,start_y+90);
 
+				Scalar fontColor = new Scalar(0, 0, 255);
+				Imgproc.putText(mRgba,Text_hue,point_hue,1,3,fontColor,2);
+
+				Imgproc.putText(mRgba,Text_RGB,point_rgb,1,3,fontColor,2);
+
+				drawRect();
+
+				//핸들러로 블루투스 통신 시작.
+				mhandler.postDelayed(mRunnable,100);
+
+				Log.i("handlerMessage",sendMsg);
 
 
 
-			Point point_hue  = new Point (start_x-150,start_y-50);
-			Point point_rgb = new Point (start_x-150,start_y-90);
-			Scalar fontColor = new Scalar(0, 0, 255);
-			Imgproc.putText(mRgba,Text_hue,point_hue,1,3,fontColor,2);
-			Imgproc.putText(mRgba,Text_RGB,point_rgb,1,3,fontColor,2);
+				break;
 
-			drawRect();
-
-			//핸들러로 블루투스 통신 시작.
-			mhandler.postDelayed(mRunnable,100);
-
-			Log.i("handlerMessage",sendMsg);
-
-
-
-			break;
-
-		case VIEW_MODE_INIT:
-
-			// input frame has RBGA format
-			mRgba = inputFrame.rgba();
-			drawRect() ;
-			break;
-		case VIEW_MODE_STOP:
+			case VIEW_MODE_INIT:
 
 				// input frame has RBGA format
 				mRgba = inputFrame.rgba();
 				drawRect() ;
 				break;
-		case VIEW_MODE_CHECK:
+			case VIEW_MODE_STOP:
 
-			// input frame has gray scale format
+				// input frame has RBGA format
+				mRgba = inputFrame.rgba();
+				drawRect() ;
+				break;
+			case VIEW_MODE_CHECK:
 
-			mRgba = inputFrame.rgba();
-			drawRect() ;
-			break;
-		/*
-		 * case VIEW_MODE_FEATURES: // input frame has RGBA format mRgba =
-		 * inputFrame.rgba(); mGray = inputFrame.gray();
-		 * Labling(mGray.getNativeObjAddr(), mRgba.getNativeObjAddr()); break;
-		 */
+				// input frame has gray scale format
+
+				mRgba = inputFrame.rgba();
+				drawRect() ;
+				break;
+			/*
+			 * case VIEW_MODE_FEATURES: // input frame has RGBA format mRgba =
+			 * inputFrame.rgba(); mGray = inputFrame.gray();
+			 * Labling(mGray.getNativeObjAddr(), mRgba.getNativeObjAddr()); break;
+			 */
 		}
 
 		return mRgba;
@@ -562,46 +608,46 @@ public class Tutorial2Activity extends Activity implements
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
-			case MESSAGE_STATE_CHANGE:
-				if (D)
-					Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
-				switch (msg.arg1) {
-				case BluetoothChatService.STATE_CONNECTED:
+				case MESSAGE_STATE_CHANGE:
+					if (D)
+						Log.i(TAG, "MESSAGE_STATE_CHANGE: " + msg.arg1);
+					switch (msg.arg1) {
+						case BluetoothChatService.STATE_CONNECTED:
 
-					mTitle.setText(R.string.title_connected_to);
-					mTitle.append(mConnectedDeviceName);
+							mTitle.setText(R.string.title_connected_to);
+							mTitle.append(mConnectedDeviceName);
+							break;
+						case BluetoothChatService.STATE_CONNECTING:
+							mTitle.setText(R.string.title_connecting);
+							break;
+						case BluetoothChatService.STATE_LISTEN:
+						case BluetoothChatService.STATE_NONE:
+							mTitle.setText(R.string.title_not_connected);
+							break;
+					}
 					break;
-				case BluetoothChatService.STATE_CONNECTING:
-					mTitle.setText(R.string.title_connecting);
-					break;
-				case BluetoothChatService.STATE_LISTEN:
-				case BluetoothChatService.STATE_NONE:
-					mTitle.setText(R.string.title_not_connected);
-					break;
-				}
-				break;
-			case MESSAGE_WRITE:
+				case MESSAGE_WRITE:
 
-				break;
-			case MESSAGE_READ:
-				byte[] readBuf = (byte[]) msg.obj;
-				// construct a string from the valid bytes in the buffer
-				String readMessage = new String(readBuf, 0, msg.arg1);
-//				mConversationArrayAdapter.add(mConnectedDeviceName + ":  "
-//						+ readMessage);
-				break;
-			case MESSAGE_DEVICE_NAME:
-				// save the connected device's name
-				mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-				Toast.makeText(getApplicationContext(),
-						"Connected to " + mConnectedDeviceName,
-						Toast.LENGTH_SHORT).show();
-				break;
-			case MESSAGE_TOAST:
-				Toast.makeText(getApplicationContext(),
-						msg.getData().getString(TOAST), Toast.LENGTH_SHORT)
-						.show();
-				break;
+					break;
+				case MESSAGE_READ:
+					byte[] readBuf = (byte[]) msg.obj;
+					// construct a string from the valid bytes in the buffer
+					String readMessage = new String(readBuf, 0, msg.arg1);
+//            mConversationArrayAdapter.add(mConnectedDeviceName + ":  "
+//                  + readMessage);
+					break;
+				case MESSAGE_DEVICE_NAME:
+					// save the connected device's name
+					mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
+					Toast.makeText(getApplicationContext(),
+							"Connected to " + mConnectedDeviceName,
+							Toast.LENGTH_SHORT).show();
+					break;
+				case MESSAGE_TOAST:
+					Toast.makeText(getApplicationContext(),
+							msg.getData().getString(TOAST), Toast.LENGTH_SHORT)
+							.show();
+					break;
 			}
 		}
 	};
@@ -611,31 +657,31 @@ public class Tutorial2Activity extends Activity implements
 		if (D)
 			Log.d(TAG, "onActivityResult " + resultCode);
 		switch (requestCode) {
-		case REQUEST_CONNECT_DEVICE:
-			// When DeviceListActivity returns with a device to connect
-			if (resultCode == Activity.RESULT_OK) {
-				// Get the device MAC address
-				String address = data.getExtras().getString(
-						DeviceListActivity.EXTRA_DEVICE_ADDRESS);
-				// Get the BLuetoothDevice object
-				BluetoothDevice device = mBluetoothAdapter
-						.getRemoteDevice(address);
-				// Attempt to connect to the device
-				mChatService.connect(device);
-			}
-			break;
-		case REQUEST_ENABLE_BT:
-			// When the request to enable Bluetooth returns
-			if (resultCode == Activity.RESULT_OK) {
-				// Bluetooth is now enabled, so set up a chat session
-				setupChat();
-			} else {
-				// User did not enable Bluetooth or an error occured
-				Log.d(TAG, "BT not enabled");
-				Toast.makeText(this, R.string.bt_not_enabled_leaving,
-						Toast.LENGTH_SHORT).show();
-				finish();
-			}
+			case REQUEST_CONNECT_DEVICE:
+				// When DeviceListActivity returns with a device to connect
+				if (resultCode == Activity.RESULT_OK) {
+					// Get the device MAC address
+					String address = data.getExtras().getString(
+							DeviceListActivity.EXTRA_DEVICE_ADDRESS);
+					// Get the BLuetoothDevice object
+					BluetoothDevice device = mBluetoothAdapter
+							.getRemoteDevice(address);
+					// Attempt to connect to the device
+					mChatService.connect(device);
+				}
+				break;
+			case REQUEST_ENABLE_BT:
+				// When the request to enable Bluetooth returns
+				if (resultCode == Activity.RESULT_OK) {
+					// Bluetooth is now enabled, so set up a chat session
+					setupChat();
+				} else {
+					// User did not enable Bluetooth or an error occured
+					Log.d(TAG, "BT not enabled");
+					Toast.makeText(this, R.string.bt_not_enabled_leaving,
+							Toast.LENGTH_SHORT).show();
+					finish();
+				}
 		}
 	}
 
@@ -649,11 +695,11 @@ public class Tutorial2Activity extends Activity implements
 
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case R.id.scan:
-			// Launch the DeviceListActivity to see devices and do scan
-			Intent serverIntent = new Intent(this, DeviceListActivity.class);
-			startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE);
-			return true;
+			case R.id.scan:
+				// Launch the DeviceListActivity to see devices and do scan
+				Intent serverIntent = new Intent(this, DeviceListActivity.class);
+				startActivityForResult(serverIntent, REQUEST_CONNECT_DEVICE);
+				return true;
 		}
 		return false;
 	}
@@ -670,48 +716,51 @@ public class Tutorial2Activity extends Activity implements
 
 		// Check that there's actually something to send
 	}
-	private int checkColor(int avgR, int avgG, int avgB){
-		int mode =0;
-		int result = 0 ;
-
-		if(avgR>150 && avgR<180){
-			if(avgG<130){
-				if(avgB<100)
-					mode = 1;} //����jm
-			else if(avgG>150 && avgG<195){
-				if(avgB<100)
-					mode = 2;} //������
-		}
-		else if(avgR<50){
-			if(avgG>70 && avgG<150)
-				if(avgG>95 && avgG<160)
-					mode = 3; //�Ķ���
-		}
-		switch(mode){
-		case 0 :
-			result = 0; //�ƹ��͵��ش�ȵɶ�
-			break;
-		case 1 :
-			result = 1; //���������
-			break;
-		case 2 :
-			result = 2; //�Ķ������
-			break;
-		case 3 :
-			result = 3; //�����
-			break;
-		case 4 :
-			result = 4; //���
-			break;
-		}
-			return result;
-	}
+//	private int checkColor(int avgR, int avgG, int avgB){
+//		int mode =0;
+//		int result = 0 ;
+//
+////		if(avgR>150 && avgR<180){
+////			if(avgG<130){
+////				if(avgB<100)
+////					mode = 1;} //����jm
+////			else if(avgG>150 && avgG<195){
+////				if(avgB<100)
+////					mode = 2;} //������
+////		}
+////		else if(avgR<50){
+////			if(avgG>70 && avgG<150)
+////				if(avgG>95 && avgG<160)
+////					mode = 3; //�Ķ���
+////		}
+//
+//		if(avgR<64 && avgG<64){
+//			if(avgB<60)
+//				mode = 3; //�Ķ���
+//		}
+//		switch(mode){
+//			case 0 :
+//				result = 0; //�ƹ��͵��ش�ȵɶ�
+//				break;
+//			case 1 :
+//				result = 1; //���������
+//				break;
+//			case 2 :
+//				result = 2; //�Ķ������
+//				break;
+//			case 3 :
+//				result = 3; //�����
+//				break;
+//			case 4 :
+//				result = 4; //���
+//				break;
+//		}
+//		return result;
+//	}
 
 
 	public void DicideOperation(int a, int b, int c){
 		if(a <30 && b<30 && c < 30){
-
-
 		}
 	}
 
@@ -722,6 +771,12 @@ public class Tutorial2Activity extends Activity implements
 	Runnable mRunnable = new Runnable() {
 		@Override
 		public void run() {
+
+
+
+			//To calculate hue value
+//			Double test = new Double();
+//			CalculateHue calculateHue = new CalculateHue();
 
 			if (mChatService.getState() == BluetoothChatService.STATE_CONNECTED) {
 				String con = new String("GO" + "\n");
@@ -784,6 +839,8 @@ public class Tutorial2Activity extends Activity implements
 					}
 					mText.setText("Detection: Y ");
 
+					delayState();
+
 				}
 
 			} else if (DetectColor(RGB_data_array)==COLOR_RED&&!FLAG_RED) {
@@ -819,6 +876,8 @@ public class Tutorial2Activity extends Activity implements
 					}
 					mText.setText("Detection: R ");
 
+					delayState();
+
 				}
 			}else if (DetectColor(RGB_data_array)==COLOR_GREEN&&!FLAG_GREEN) {
 
@@ -853,6 +912,8 @@ public class Tutorial2Activity extends Activity implements
 					}
 					mText.setText("Detection: G ");
 
+					delayState();
+
 				}
 			}
 		}
@@ -862,8 +923,7 @@ public class Tutorial2Activity extends Activity implements
 	public void onClick0(View v){
 		switch (v.getId()){
 			case R.id.btn_up:
-				start_y-=20;
-
+				start_y-=10;
 
 				seekBarProgress=seekBar.getProgress();
 
@@ -882,25 +942,25 @@ public class Tutorial2Activity extends Activity implements
 		switch (v.getId()){
 
 			case R.id.btn_down:
-				start_y+=20;
+				start_y+=10;
 
 				Log.i("start_down",Integer.toString(start_y));
 
 
 		}
-	}	public void onClick3(View v){
+	}   public void onClick3(View v){
 		switch (v.getId()){
 
 			case R.id.btn_left:
-				start_x-=20;
+				start_x-=10;
 				Log.i("start_left",Integer.toString(start_x));
 
 		}
-	}	public void onClick2(View v){
+	}   public void onClick2(View v){
 		switch (v.getId()){
 
 			case R.id.btn_right:
-				start_x+=20;
+				start_x+=10;
 
 				Log.i("start_right",Integer.toString(start_x));
 
@@ -912,36 +972,73 @@ public class Tutorial2Activity extends Activity implements
 	public int checking_g_changed=0;
 	public int checking_b_changed=0;
 
-	public int DetectColor(int[] rgbData){
+	public int DetectColor(int[] rgbData) {
 		//1 = red , 2= green, 3=yeollow
 
-		int color=-1;
-		int r=rgbData[0];
-		int g=rgbData[1];
-		int b=rgbData[2];
+		int color = -1;
+		int r = rgbData[0];
+		int g = rgbData[1];
+		int b = rgbData[2];
 
 
 		//현재는 고정값이지만 후에는 상대값으로 바꿀것.
-//		if(Math.max(r,Math.max(g,b))==r && b <33 && g< 33 && r>33 ){
-//			return COLOR_RED;
-//		}
-//
-//		if(Math.max(r,Math.max(g,b))==g &&r<33 && b<33 && g>33 ){
-//			return COLOR_GREEN;
-//		}
-//		if(r>33 && g>33 && b<10 ){
-//			return COLOR_YELLOW;
-//		}
-		if(Math.max(r,Math.max(g,b))==r && b <33 && g< 33 && r>33 ){
-			return COLOR_RED;
+
+//		if(FLAG_INI_VALUE>=150 && FLAG_INI_VALUE<=300 && FLAG_INI_VALUE%5==0){
+
+		if (FLAG_INI_VALUE > 180) {
+			if (!ini_F) {
+				if (FLAG_INI_VALUE == 300) {
+					ini_G += g;
+					ini_GC = ini_G/120;
+					FLAG_INI_VALUE = 181;
+					ini_F = true;
+					ini_G=0;
+
+//					Log.i("value_G", Integer.toString(g));
+//					Log.i("value_ini_G", Integer.toString(ini_G));
+//					Log.i("value_ini_GC", Integer.toString(ini_GC));
+				}
+				else {
+					ini_G += g;
+					FLAG_INI_VALUE++;
+				}
+			}
+
+			else {
+				if (g > ini_GC+7) {
+					return COLOR_RED;
+				}
+				else if (g < ini_GC+5){
+					FLAG_RED = false;
+				}
+
+				if(g<ini_GC+6 && g>ini_GC-5){
+					if (FLAG_INI_VALUE == 200) {
+						ini_G += g;
+						ini_GC = ini_G/20;
+						FLAG_INI_VALUE = 181;
+						ini_G=0;
+//						Log.i("value_G", Integer.toString(g));
+//						Log.i("value_ini_G", Integer.toString(ini_G));
+//						Log.i("value_ini_GC", Integer.toString(ini_GC));
+					}
+					else {
+						ini_G += g;
+						FLAG_INI_VALUE++;
+					}
+				}
+			}
 		}
 
-		if(Math.max(r,Math.max(g,b))==g &&r<33 && b<33 && g>33 ){
-			return COLOR_GREEN;
+		else if(FLAG_INI_VALUE<=180){
+			FLAG_INI_VALUE++;
 		}
-		if(r>33 && g>33 && b<r*0.2 ){
-			return COLOR_YELLOW;
-		}
+
+
+
+//		Log.i("value_G", Integer.toString(g));
+//		Log.i("value_ini_G", Integer.toString(ini_G));
+//		Log.i("value_ini_GC", Integer.toString(ini_GC));
 
 		return -1;
 	}
@@ -951,6 +1048,7 @@ public class Tutorial2Activity extends Activity implements
 		super.onStart();
 		mhandler= new Handler();
 		mhandler.postDelayed(mRunnable,10);
+
 	}
 
 	protected void onStop(){
@@ -958,11 +1056,37 @@ public class Tutorial2Activity extends Activity implements
 		mhandler.removeCallbacks(mRunnable);
 	}
 
+	Runnable delayStart = new Runnable() {
+		@Override
+		public void run() {
+			StartBtn.performClick();
+
+			Toast.makeText(getApplicationContext(),
+					"Detection Started",
+					Toast.LENGTH_SHORT).show();
+
+		}
+	};
+
+
+	public void delayState(){
+		mhandler.postDelayed(delayStart,10000);
+//		threadDelay = new Thread();
+
+//		try {
+//			threadDelay.sleep(5000);
+//			StartBtn.performClick();
+//
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//
+//		}
+	}
 
 	public native void FindFeatures(long matAddrGr, long matAddrRgba);
-//	public native void Labling(long matAddrGr, long matAddrRgba);
+//   public native void Labling(long matAddrGr, long matAddrRgba);
 
 
 
 }
-

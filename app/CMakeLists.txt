@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
-include_directories(F:/Quix22/app/OpenCV-android-sdk/sdk/native/jni/include)
+include_directories(D:/Quix22_fix_2/app/OpenCV-android-sdk/sdk/native/jni/include)
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.

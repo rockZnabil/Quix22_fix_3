@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "F:\\Quix22\\app\\build\\intermediates\\incremental\\mergeDebugResources\\merged.dir\\values-sw600dp-v13\\values-sw600dp-v13.xml",
+            "outputFile": "D:\\Quix22_fix_2\\app\\build\\intermediates\\incremental\\mergeDebugResources\\merged.dir\\values-sw600dp-v13\\values-sw600dp-v13.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ygyg331\\.gradle\\caches\\transforms-1\\files-1.1\\appcompat-v7-26.1.0.aar\\218d82bcb54b7c46e7b553232ae5649e\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
+                    "source": "C:\\Users\\Nabil Hossain\\.gradle\\caches\\transforms-1\\files-1.1\\appcompat-v7-26.1.0.aar\\265dc05f6083f80e680b68511263f045\\res\\values-sw600dp-v13\\values-sw600dp-v13.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
